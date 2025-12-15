@@ -57,28 +57,32 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        health: "hsl(var(--health))",
+        hunger: "hsl(var(--hunger))",
+        thirst: "hsl(var(--thirst))",
+        sanity: "hsl(var(--sanity))",
+        danger: "hsl(var(--danger))",
+        safe: "hsl(var(--safe))",
+        night: "hsl(var(--night))",
+        fog: "hsl(var(--fog))",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        creepy: ["Creepster", "cursive"],
+        game: ["Rajdhani", "sans-serif"],
+      },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
