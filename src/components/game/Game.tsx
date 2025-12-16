@@ -13,6 +13,11 @@ export const Game = () => {
   const {
     gameState,
     startGame,
+    loadGame,
+    saveGame,
+    hasSavedGame,
+    getSavedGameInfo,
+    deleteSavedGame,
     movePlayer,
     collectResource,
     craftItem,
@@ -120,7 +125,15 @@ export const Game = () => {
 
   // Render based on game phase
   if (gameState.gamePhase === 'menu') {
-    return <MainMenu onStartGame={startGame} />;
+    return (
+      <MainMenu 
+        onStartGame={startGame} 
+        onLoadGame={loadGame}
+        hasSavedGame={hasSavedGame()}
+        savedGameInfo={getSavedGameInfo()}
+        onDeleteSave={deleteSavedGame}
+      />
+    );
   }
 
   if (gameState.gamePhase === 'ending') {
@@ -165,6 +178,7 @@ export const Game = () => {
           timeOfDay={gameState.timeOfDay}
           dayCount={gameState.dayCount}
           isNight={gameState.isNight}
+          onSaveGame={saveGame}
         />
 
         <EndingPanel
