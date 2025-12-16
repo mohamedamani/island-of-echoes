@@ -2,9 +2,20 @@ import { Button } from '@/components/ui/button';
 
 interface MainMenuProps {
   onStartGame: () => void;
+  onLoadGame: () => void;
+  hasSavedGame: boolean;
+  savedGameInfo: { dayCount: number; savedAt: Date } | null;
+  onDeleteSave: () => void;
 }
 
-export const MainMenu = ({ onStartGame }: MainMenuProps) => {
+export const MainMenu = ({ onStartGame, onLoadGame, hasSavedGame, savedGameInfo, onDeleteSave }: MainMenuProps) => {
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('ar', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(date);
+  };
+
   return (
     <div className="min-h-screen game-container flex flex-col items-center justify-center relative overflow-hidden">
       {/* Animated fog layers */}
@@ -57,14 +68,43 @@ export const MainMenu = ({ onStartGame }: MainMenuProps) => {
           <span>🧠 العقل</span>
         </div>
 
-        {/* Start button */}
-        <Button
-          onClick={onStartGame}
-          size="lg"
-          className="px-12 py-6 text-xl font-bold bg-primary hover:bg-primary/80 text-primary-foreground shadow-lg hover:shadow-primary/30 transition-all duration-300 hover:scale-105"
-        >
-          ابدأ النجاة
-        </Button>
+        {/* Buttons */}
+        <div className="space-y-4">
+          {/* Continue button (if save exists) */}
+          {hasSavedGame && savedGameInfo && (
+            <div className="space-y-2">
+              <Button
+                onClick={onLoadGame}
+                size="lg"
+                className="px-12 py-6 text-xl font-bold bg-primary hover:bg-primary/80 text-primary-foreground shadow-lg hover:shadow-primary/30 transition-all duration-300 hover:scale-105 w-full max-w-xs"
+              >
+                استكمال اللعبة
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                📅 اليوم {savedGameInfo.dayCount} | آخر حفظ: {formatDate(savedGameInfo.savedAt)}
+              </div>
+            </div>
+          )}
+
+          {/* New game button */}
+          <Button
+            onClick={() => {
+              if (hasSavedGame) {
+                onDeleteSave();
+              }
+              onStartGame();
+            }}
+            size="lg"
+            variant={hasSavedGame ? "outline" : "default"}
+            className={`px-12 py-6 text-xl font-bold shadow-lg transition-all duration-300 hover:scale-105 w-full max-w-xs ${
+              !hasSavedGame 
+                ? 'bg-primary hover:bg-primary/80 text-primary-foreground hover:shadow-primary/30' 
+                : 'border-primary/50 hover:bg-primary/20'
+            }`}
+          >
+            {hasSavedGame ? 'لعبة جديدة' : 'ابدأ النجاة'}
+          </Button>
+        </div>
 
         {/* Endings hint */}
         <div className="mt-12 text-muted-foreground text-sm space-y-1">

@@ -4,6 +4,7 @@ import { GameState, Position, Resource, Enemy, Building, InventoryItem, GameEndi
 const WORLD_SIZE = 800;
 const INITIAL_RESOURCES = 30;
 const INITIAL_ENEMIES = 5;
+const SAVE_KEY = 'forest_game_save';
 
 const generateResources = (): Resource[] => {
   const resources: Resource[] = [];
@@ -67,6 +68,75 @@ const initialState: GameState = {
   },
 };
 
+// Save game to localStorage
+const saveToStorage = (state: GameState): boolean => {
+  try {
+    const saveData = {
+      ...state,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+    return true;
+  } catch (error) {
+    console.error('Failed to save game:', error);
+    return false;
+  }
+};
+
+// Load game from localStorage
+const loadFromStorage = (): GameState | null => {
+  try {
+    const savedData = localStorage.getItem(SAVE_KEY);
+    if (!savedData) return null;
+    
+    const parsed = JSON.parse(savedData);
+    // Ensure gamePhase is 'playing' when loading
+    return {
+      ...parsed,
+      gamePhase: 'playing',
+    };
+  } catch (error) {
+    console.error('Failed to load game:', error);
+    return null;
+  }
+};
+
+// Check if save exists
+const hasSaveData = (): boolean => {
+  try {
+    const savedData = localStorage.getItem(SAVE_KEY);
+    if (!savedData) return false;
+    const parsed = JSON.parse(savedData);
+    return parsed && parsed.player && parsed.dayCount > 0;
+  } catch {
+    return false;
+  }
+};
+
+// Get save info for display
+const getSaveInfo = (): { dayCount: number; savedAt: Date } | null => {
+  try {
+    const savedData = localStorage.getItem(SAVE_KEY);
+    if (!savedData) return null;
+    const parsed = JSON.parse(savedData);
+    return {
+      dayCount: parsed.dayCount || 1,
+      savedAt: new Date(parsed.savedAt || Date.now()),
+    };
+  } catch {
+    return null;
+  }
+};
+
+// Delete save
+const deleteSave = (): void => {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch (error) {
+    console.error('Failed to delete save:', error);
+  }
+};
+
 export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>(initialState);
 
@@ -77,6 +147,34 @@ export const useGameState = () => {
       enemies: generateEnemies(),
       gamePhase: 'playing',
     });
+  }, []);
+
+  const loadGame = useCallback(() => {
+    const savedState = loadFromStorage();
+    if (savedState) {
+      setGameState(savedState);
+      return true;
+    }
+    return false;
+  }, []);
+
+  const saveGame = useCallback(() => {
+    if (gameState.gamePhase === 'playing') {
+      return saveToStorage(gameState);
+    }
+    return false;
+  }, [gameState]);
+
+  const hasSavedGame = useCallback(() => {
+    return hasSaveData();
+  }, []);
+
+  const getSavedGameInfo = useCallback(() => {
+    return getSaveInfo();
+  }, []);
+
+  const deleteSavedGame = useCallback(() => {
+    deleteSave();
   }, []);
 
   const movePlayer = useCallback((direction: { x: number; y: number }) => {
@@ -377,6 +475,11 @@ export const useGameState = () => {
   return {
     gameState,
     startGame,
+    loadGame,
+    saveGame,
+    hasSavedGame,
+    getSavedGameInfo,
+    deleteSavedGame,
     movePlayer,
     collectResource,
     craftItem,
