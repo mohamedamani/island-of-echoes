@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { MainMenu } from './MainMenu';
-import { GameWorld } from './GameWorld';
+import { GameWorld3D } from './GameWorld3D';
 import { PlayerHUD } from './PlayerHUD';
 import { Inventory } from './Inventory';
 import { EndingPanel } from './EndingPanel';
@@ -153,7 +153,7 @@ export const Game = () => {
 
       {/* Main game area */}
       <div className="relative">
-        <GameWorld
+        <GameWorld3D
           gameState={gameState}
           worldSize={WORLD_SIZE}
           onCollectResource={collectResource}
