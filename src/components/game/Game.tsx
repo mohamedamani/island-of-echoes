@@ -1,5 +1,6 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { useGameState } from '@/hooks/useGameState';
+import { useGameAudio } from '@/hooks/useGameAudio';
 import { MainMenu } from './MainMenu';
 import { GameWorld3D } from './GameWorld3D';
 import { PlayerHUD } from './PlayerHUD';
@@ -27,6 +28,19 @@ export const Game = () => {
     WORLD_SIZE,
   } = useGameState();
 
+  const {
+    startAudio,
+    stopAudio,
+    updateAudioState,
+    playSFX,
+    toggleMute,
+    setMasterVolume,
+    isMuted,
+    volume
+  } = useGameAudio();
+
+  const lastMoveTime = useRef(0);
+
   const [keys, setKeys] = useState<Set<string>>(new Set());
 
   // Handle keyboard input
@@ -52,7 +66,38 @@ export const Game = () => {
     };
   }, []);
 
-  // Movement loop
+  // Start audio when game starts
+  useEffect(() => {
+    if (gameState.gamePhase === 'playing') {
+      startAudio();
+    } else {
+      stopAudio();
+    }
+  }, [gameState.gamePhase, startAudio, stopAudio]);
+
+  // Update audio state based on game state
+  useEffect(() => {
+    if (gameState.gamePhase === 'playing') {
+      updateAudioState({
+        isNight: gameState.isNight,
+        playerHealth: gameState.player.stats.health,
+        sanity: gameState.player.stats.sanity,
+        isUnderAttack: gameState.enemies.some(e => e.state === 'attack')
+      });
+    }
+  }, [gameState.isNight, gameState.player.stats.health, gameState.player.stats.sanity, gameState.enemies, gameState.gamePhase, updateAudioState]);
+
+  // Play enemy sounds
+  useEffect(() => {
+    if (gameState.gamePhase !== 'playing') return;
+    
+    const attackingEnemies = gameState.enemies.filter(e => e.state === 'attack' || e.state === 'chase');
+    if (attackingEnemies.length > 0 && Math.random() < 0.02) {
+      playSFX('enemy_growl');
+    }
+  }, [gameState.enemies, gameState.gamePhase, playSFX]);
+
+  // Movement loop with footstep sounds
   useEffect(() => {
     if (gameState.gamePhase !== 'playing') return;
 
@@ -67,11 +112,18 @@ export const Game = () => {
 
       if (dx !== 0 || dy !== 0) {
         movePlayer({ x: dx, y: dy });
+        
+        // Play footstep sound occasionally
+        const now = Date.now();
+        if (now - lastMoveTime.current > 300) {
+          playSFX('footstep');
+          lastMoveTime.current = now;
+        }
       }
     }, 16);
 
     return () => clearInterval(interval);
-  }, [keys, gameState.gamePhase, movePlayer]);
+  }, [keys, gameState.gamePhase, movePlayer, playSFX]);
 
   // Handle using items (food/water)
   const handleUseItem = useCallback((type: string) => {
@@ -90,9 +142,9 @@ export const Game = () => {
     } else if (type === 'water') {
       toast({ title: '💧 شربت ماءً', description: 'العطش +30' });
     }
-  }, [gameState.player.inventory, toast]);
+  }, [gameState.player.inventory, toast, playSFX]);
 
-  // Handle crafting with feedback
+  // Handle crafting with feedback and sound
   const handleCraft = useCallback((itemId: string, requirements: { type: string; amount: number }[]) => {
     craftItem(itemId, requirements);
     
@@ -108,6 +160,7 @@ export const Game = () => {
       radio: 'راديو',
     };
     
+    playSFX('craft');
     toast({ 
       title: '🔧 تم الصنع!', 
       description: `صنعت ${itemNames[itemId] || itemId}` 
@@ -116,12 +169,28 @@ export const Game = () => {
     // Auto-place buildings
     if (['shelter', 'fire', 'trap'].includes(itemId)) {
       placeBuilding(itemId as any);
+      playSFX('build');
       toast({ 
         title: '🏗️ تم البناء!', 
         description: `وُضع ${itemNames[itemId]} في موقعك` 
       });
     }
-  }, [craftItem, placeBuilding, toast]);
+  }, [craftItem, placeBuilding, toast, playSFX]);
+
+  // Handle collect with sound
+  const handleCollect = useCallback((resourceId: string) => {
+    collectResource(resourceId);
+    playSFX('collect');
+  }, [collectResource, playSFX]);
+
+  // Handle attack with sound
+  const handleAttack = useCallback((enemyId: string, damage: number) => {
+    attackEnemy(enemyId, damage);
+    playSFX('attack');
+    
+    // Play hit sound after small delay
+    setTimeout(() => playSFX('hit'), 100);
+  }, [attackEnemy, playSFX]);
 
   // Render based on game phase
   if (gameState.gamePhase === 'menu') {
@@ -169,8 +238,8 @@ export const Game = () => {
         <GameWorld3D
           gameState={gameState}
           worldSize={WORLD_SIZE}
-          onCollectResource={collectResource}
-          onAttackEnemy={attackEnemy}
+          onCollectResource={handleCollect}
+          onAttackEnemy={handleAttack}
         />
 
         <PlayerHUD
@@ -179,6 +248,10 @@ export const Game = () => {
           dayCount={gameState.dayCount}
           isNight={gameState.isNight}
           onSaveGame={saveGame}
+          isMuted={isMuted}
+          volume={volume}
+          onToggleMute={toggleMute}
+          onVolumeChange={setMasterVolume}
         />
 
         <EndingPanel

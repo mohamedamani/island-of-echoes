@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { PlayerStats } from '@/types/game';
 import { Button } from '@/components/ui/button';
-import { Save, Check } from 'lucide-react';
+import { Save, Check, Volume2, VolumeX } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 
 interface PlayerHUDProps {
   stats: PlayerStats;
@@ -9,9 +10,23 @@ interface PlayerHUDProps {
   dayCount: number;
   isNight: boolean;
   onSaveGame: () => boolean;
+  isMuted?: boolean;
+  volume?: number;
+  onToggleMute?: () => void;
+  onVolumeChange?: (volume: number) => void;
 }
 
-export const PlayerHUD = ({ stats, timeOfDay, dayCount, isNight, onSaveGame }: PlayerHUDProps) => {
+export const PlayerHUD = ({ 
+  stats, 
+  timeOfDay, 
+  dayCount, 
+  isNight, 
+  onSaveGame,
+  isMuted = false,
+  volume = 0.5,
+  onToggleMute,
+  onVolumeChange
+}: PlayerHUDProps) => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const formatTime = (time: number) => {
@@ -142,6 +157,34 @@ export const PlayerHUD = ({ stats, timeOfDay, dayCount, isNight, onSaveGame }: P
             </>
           )}
         </Button>
+
+        {/* Audio controls */}
+        {onToggleMute && (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={onToggleMute}
+              size="sm"
+              variant="ghost"
+              className="p-1 h-8 w-8"
+            >
+              {isMuted ? (
+                <VolumeX className="w-4 h-4" />
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
+            </Button>
+            {onVolumeChange && !isMuted && (
+              <Slider
+                value={[volume * 100]}
+                onValueChange={(v) => onVolumeChange(v[0] / 100)}
+                max={100}
+                min={0}
+                step={5}
+                className="w-16"
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
