@@ -1,3 +1,5 @@
+# Robots.txt for الغابة - The Forest
+
 User-agent: Googlebot
 Allow: /
 
@@ -12,3 +14,9 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Sitemap
+Sitemap: https://al-ghaba.lovable.app/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1
