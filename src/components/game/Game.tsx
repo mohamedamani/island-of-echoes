@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useState, useRef, Suspense } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useGameAudio } from '@/hooks/useGameAudio';
 import { MainMenu } from './MainMenu';
@@ -7,10 +7,32 @@ import { PlayerHUD } from './PlayerHUD';
 import { Inventory } from './Inventory';
 import { EndingPanel } from './EndingPanel';
 import { EndingScreen } from './EndingScreen';
+import { LoadingScreen } from './LoadingScreen';
+import { ErrorBoundary } from './ErrorBoundary';
 import { useToast } from '@/hooks/use-toast';
+
+// Loading fallback for 3D world
+const GameWorldFallback = () => (
+  <div className="w-full h-[600px] bg-muted/20 rounded-lg flex items-center justify-center">
+    <div className="text-center space-y-4">
+      <div className="flex justify-center gap-1">
+        {[...Array(3)].map((_, i) => (
+          <div
+            key={i}
+            className="w-3 h-3 bg-primary rounded-full animate-bounce"
+            style={{ animationDelay: `${i * 0.15}s` }}
+          />
+        ))}
+      </div>
+      <p className="text-muted-foreground">جاري تحميل العالم...</p>
+    </div>
+  </div>
+);
 
 export const Game = () => {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  
   const {
     gameState,
     startGame,
@@ -40,8 +62,12 @@ export const Game = () => {
   } = useGameAudio();
 
   const lastMoveTime = useRef(0);
-
   const [keys, setKeys] = useState<Set<string>>(new Set());
+
+  // Handle loading complete
+  const handleLoadingComplete = useCallback(() => {
+    setIsLoading(false);
+  }, []);
 
   // Handle keyboard input
   useEffect(() => {
@@ -130,19 +156,12 @@ export const Game = () => {
     const item = gameState.player.inventory.find(i => i.type === type);
     if (!item || item.amount <= 0) return;
 
-    // Remove item from inventory
-    const newInventory = gameState.player.inventory.map(i =>
-      i.type === type ? { ...i, amount: i.amount - 1 } : i
-    ).filter(i => i.amount > 0);
-
-    // This would need to be handled properly in the game state
-    // For now, show a toast
     if (type === 'food') {
       toast({ title: '🍖 أكلت طعاماً', description: 'الجوع +30' });
     } else if (type === 'water') {
       toast({ title: '💧 شربت ماءً', description: 'العطش +30' });
     }
-  }, [gameState.player.inventory, toast, playSFX]);
+  }, [gameState.player.inventory, toast]);
 
   // Handle crafting with feedback and sound
   const handleCraft = useCallback((itemId: string, requirements: { type: string; amount: number }[]) => {
@@ -192,6 +211,11 @@ export const Game = () => {
     setTimeout(() => playSFX('hit'), 100);
   }, [attackEnemy, playSFX]);
 
+  // Show loading screen first
+  if (isLoading) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
+  }
+
   // Render based on game phase
   if (gameState.gamePhase === 'menu') {
     return (
@@ -220,51 +244,55 @@ export const Game = () => {
   const bloodOpacity = Math.max(0, (50 - gameState.player.stats.health) / 100);
 
   return (
-    <div className="min-h-screen game-container flex items-center justify-center p-4 relative">
-      {/* Blood vignette */}
-      <div 
-        className="absolute inset-0 blood-vignette pointer-events-none z-50"
-        style={{ '--blood-opacity': bloodOpacity } as React.CSSProperties}
-      />
-
-      {/* Night overlay */}
-      <div 
-        className="absolute inset-0 night-overlay pointer-events-none z-40"
-        style={{ '--night-opacity': gameState.isNight ? 0.4 : 0 } as React.CSSProperties}
-      />
-
-      {/* Main game area */}
-      <div className="relative">
-        <GameWorld3D
-          gameState={gameState}
-          worldSize={WORLD_SIZE}
-          onCollectResource={handleCollect}
-          onAttackEnemy={handleAttack}
+    <ErrorBoundary>
+      <div className="min-h-screen game-container flex items-center justify-center p-4 relative">
+        {/* Blood vignette */}
+        <div 
+          className="absolute inset-0 blood-vignette pointer-events-none z-50"
+          style={{ '--blood-opacity': bloodOpacity } as React.CSSProperties}
         />
 
-        <PlayerHUD
-          stats={gameState.player.stats}
-          timeOfDay={gameState.timeOfDay}
-          dayCount={gameState.dayCount}
-          isNight={gameState.isNight}
-          onSaveGame={saveGame}
-          isMuted={isMuted}
-          volume={volume}
-          onToggleMute={toggleMute}
-          onVolumeChange={setMasterVolume}
+        {/* Night overlay */}
+        <div 
+          className="absolute inset-0 night-overlay pointer-events-none z-40"
+          style={{ '--night-opacity': gameState.isNight ? 0.4 : 0 } as React.CSSProperties}
         />
 
-        <EndingPanel
-          endingProgress={gameState.endingProgress}
-          onTriggerEnding={triggerEnding}
-        />
+        {/* Main game area */}
+        <div className="relative">
+          <Suspense fallback={<GameWorldFallback />}>
+            <GameWorld3D
+              gameState={gameState}
+              worldSize={WORLD_SIZE}
+              onCollectResource={handleCollect}
+              onAttackEnemy={handleAttack}
+            />
+          </Suspense>
 
-        <Inventory
-          items={gameState.player.inventory}
-          onCraft={handleCraft}
-          onUseItem={handleUseItem}
-        />
+          <PlayerHUD
+            stats={gameState.player.stats}
+            timeOfDay={gameState.timeOfDay}
+            dayCount={gameState.dayCount}
+            isNight={gameState.isNight}
+            onSaveGame={saveGame}
+            isMuted={isMuted}
+            volume={volume}
+            onToggleMute={toggleMute}
+            onVolumeChange={setMasterVolume}
+          />
+
+          <EndingPanel
+            endingProgress={gameState.endingProgress}
+            onTriggerEnding={triggerEnding}
+          />
+
+          <Inventory
+            items={gameState.player.inventory}
+            onCraft={handleCraft}
+            onUseItem={handleUseItem}
+          />
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 };
